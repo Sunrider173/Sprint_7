@@ -1,7 +1,7 @@
-import requests
 import allure
-from data import Urls, Message
-from generator import register_new_courier_and_return_login_password, delete_courier
+from data import Message
+from generator import register_new_courier_and_return_login_password
+from api_client import CourierAPI
 
 @allure.feature("Создание и авторизация курьера")
 class TestCourier:
@@ -15,13 +15,9 @@ class TestCourier:
             "password": password,
             "firstName": first_name
         }
-        response = requests.post(Urls.COURIER_ENDPOINT, json=payload)
+        response = CourierAPI.create_courier(payload)
         assert response.status_code == 201
         assert response.json() == {"ok": True}
-        login_payload = {"login": login, "password": password}
-        login_response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=login_payload)
-        courier_id = login_response.json().get('id')
-        delete_courier(courier_id)
     
     @allure.title("Создание существующего курьера")
     def test_create_duplicate_courier(self):
@@ -30,46 +26,32 @@ class TestCourier:
         payload = {"login": login, "password": password, "firstName": first_name}
         
         # Сначала создаем курьера
-        response = requests.post(Urls.COURIER_ENDPOINT, json=payload)
+        response = CourierAPI.create_courier(payload)
         assert response.status_code == 201
         
         # Затем пытаемся создать такого же курьера
-        response = requests.post(Urls.COURIER_ENDPOINT, json=payload)
+        response = CourierAPI.create_courier(payload)
         assert response.status_code == 409
         assert Message.login_error in response.json().get('message', '')
-        
-        # Очистка
-        login_payload = {"login": login, "password": password}
-        login_response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=login_payload)
-        courier_id = login_response.json().get('id')
-        if courier_id:
-            delete_courier(courier_id)
     
     @allure.title("Создание курьера с уже существующим логином")    
     def test_create_courier_with_existed_login(self):
         # Сначала создаем курьера
         login, password, first_name = register_new_courier_and_return_login_password()
         payload = {"login": login, "password": password, "firstName": first_name}
-        response = requests.post(Urls.COURIER_ENDPOINT, json=payload)
+        response = CourierAPI.create_courier(payload)
         assert response.status_code == 201
         
         # Затем пытаемся создать курьера с тем же логином, но другими данными
         payload_with_same_login = {"login": login, "password": "different_password", "firstName": "different_name"}
-        response_with_existed_login = requests.post(Urls.COURIER_ENDPOINT, json=payload_with_same_login)
+        response_with_existed_login = CourierAPI.create_courier(payload_with_same_login)
         assert response_with_existed_login.status_code == 409
         assert Message.login_error in response_with_existed_login.json().get('message', '')
-        
-        # Очистка
-        login_payload = {"login": login, "password": password}
-        login_response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=login_payload)
-        courier_id = login_response.json().get('id')
-        if courier_id:
-            delete_courier(courier_id)
     
     @allure.title("Создание курьера без одного из обязательных полей")
     def test_create_courier_missing_field(self):
         payload = {"login": "testlogin", "firstName": "testname"}
-        response = requests.post(Urls.COURIER_ENDPOINT, json=payload)
+        response = CourierAPI.create_courier(payload)
         assert response.status_code == 400
         assert Message.data_creation_error in response.json().get('message', '')
         
@@ -77,7 +59,7 @@ class TestCourier:
     def test_login_success(self, create_courier):
         login, password, _ = create_courier
         payload = {"login": login, "password": password}
-        response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=payload)
+        response = CourierAPI.login_courier(payload)
         assert response.status_code == 200
         assert 'id' in response.json()
     
@@ -85,21 +67,21 @@ class TestCourier:
     def test_login_without_field_login(self, create_courier):
         _, password, _ = create_courier
         payload = {"password": password}
-        response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=payload)
+        response = CourierAPI.login_courier(payload)
         assert response.status_code == 400
-        assert  response.json()["message"] == Message.data_login_error
+        assert response.json()["message"] == Message.data_login_error
     
     @allure.title("Авторизация курьера с несуществующим паролем")    
     def test_login_with_wrong_password(self, create_courier):
         login, _, _ = create_courier
         payload = {"login": login, "password": '1234567'}
-        response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=payload)
+        response = CourierAPI.login_courier(payload)
         assert response.status_code == 404
-        assert  response.json()["message"] == Message.account_not_found
+        assert response.json()["message"] == Message.account_not_found
     
     @allure.title("Авторизация курьера с несуществующей парой логин-пароль")    
     def test_login_with_wrong_password_and_login(self):
         payload = {"login": '11111', "password": '1234567'}
-        response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=payload)
+        response = CourierAPI.login_courier(payload)
         assert response.status_code == 404
-        assert  response.json()["message"] == Message.account_not_found
+        assert response.json()["message"] == Message.account_not_found

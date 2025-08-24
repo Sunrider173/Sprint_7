@@ -1,20 +1,19 @@
 import pytest
-import requests
-from data import Urls
-from generator import register_new_courier_and_return_login_password, delete_courier
+from generator import register_new_courier_and_return_login_password
+from api_client import CourierAPI
 
 @pytest.fixture
 def create_courier():
     login, password, first_name = register_new_courier_and_return_login_password()
     payload = {"login": login, "password": password, "firstName": first_name}
 
-    requests.post(Urls.COURIER_ENDPOINT, json=payload)
+    response = CourierAPI.create_courier(payload)
+    assert response.status_code == 201, "Курьер не был создан в фикстуре"
    
     yield login, password, first_name
     
+    # Финализатор - всегда выполняется после теста
     login_payload = {"login": login, "password": password}
-    login_response = requests.post(Urls.COURIER_LOGIN_ENDPOINT, json=login_payload)
+    login_response = CourierAPI.login_courier(login_payload)
     courier_id = login_response.json().get('id')
-    
-    if courier_id:
-        delete_courier(courier_id)
+    CourierAPI.delete_courier(courier_id)

@@ -1,7 +1,7 @@
-import requests
 import pytest
 import allure
-from data import Urls, Order
+from data import Order
+from api_client import OrderAPI
 
 @allure.feature("Создание заказа и просмотр списка заказов")
 class TestOrder:
@@ -17,14 +17,14 @@ class TestOrder:
         if color:
             payload["color"] = color
         
-        response = requests.post(Urls.ORDER_ENDPOINT, json=payload)
+        response = OrderAPI.create_order(payload)
         
         assert response.status_code == 201
         assert 'track' in response.json()
     
     @allure.title("Просмотр списка заказов")
     def test_get_orders_list(self):
-        response = requests.get(Urls.ORDER_ENDPOINT)
+        response = OrderAPI.get_order_list()
         
         assert response.status_code == 200
         assert 'orders' in response.json()
