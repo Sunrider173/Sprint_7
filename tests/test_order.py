@@ -5,17 +5,40 @@ from api_client import OrderAPI
 
 @allure.feature("Создание заказа и просмотр списка заказов")
 class TestOrder:
-    @allure.title("Создание заказа")
-    @pytest.mark.parametrize("color", [
-        ["BLACK"],
-        ["GREY"],
-        ["BLACK", "GREY"],
-        None  
-    ])
-    def test_create_order(self, color):
-        payload = Order.order_data.copy()  # Создаем копию, чтобы не изменять оригинал
-        if color:
-            payload["color"] = color
+    @allure.title("Создание заказа с черным цветом")
+    def test_create_order_black_color(self):
+        payload = Order.order_data.copy()
+        payload["color"] = ["BLACK"]
+        
+        response = OrderAPI.create_order(payload)
+        
+        assert response.status_code == 201
+        assert 'track' in response.json()
+    
+    @allure.title("Создание заказа с серым цветом")
+    def test_create_order_grey_color(self):
+        payload = Order.order_data.copy()
+        payload["color"] = ["GREY"]
+        
+        response = OrderAPI.create_order(payload)
+        
+        assert response.status_code == 201
+        assert 'track' in response.json()
+    
+    @allure.title("Создание заказа с двумя цветами")
+    def test_create_order_two_colors(self):
+        payload = Order.order_data.copy()
+        payload["color"] = ["BLACK", "GREY"]
+        
+        response = OrderAPI.create_order(payload)
+        
+        assert response.status_code == 201
+        assert 'track' in response.json()
+    
+    @allure.title("Создание заказа без указания цвета")
+    def test_create_order_no_color(self):
+        payload = Order.order_data.copy()
+        # Не добавляем поле color
         
         response = OrderAPI.create_order(payload)
         
